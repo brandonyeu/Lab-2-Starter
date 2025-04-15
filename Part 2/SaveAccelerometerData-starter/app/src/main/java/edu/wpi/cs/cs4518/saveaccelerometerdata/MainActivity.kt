@@ -39,6 +39,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 	private var sensorManager: SensorManager? = null
 	private var accelerometer: Sensor? = null
 	private var fileWriter: FileWriter? = null
+	private var accelerometerRaw: Sensor? = null
+	private var fileWriterRaw: FileWriter? = null
 	private lateinit var statusTextView: TextView
 	private lateinit var startButton: Button
 	private lateinit var stopButton: Button
@@ -68,36 +70,50 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
 	private fun initialize() {
 		sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-		accelerometer = sensorManager?.getDefaultSensor(SENSOR_TYPE)
+		// accelerometer = sensorManager?.getDefaultSensor(SENSOR_TYPE)
+		accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
+		accelerometerRaw = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
 
 		accelerometer?.let {
 			// note that the sampling rate is just a hint; so we might not get 50Hz exact.
 			sensorManager?.registerListener(this, it, samplingPeriodUs)
 		}
+		accelerometerRaw?.let {
+			sensorManager?.registerListener(this, it, samplingPeriodUs)
+		}
+
 
 		try {
-			val file = createCSVFile()
-			fileWriter = FileWriter(file)
+			val linearFile = createCSVFile("LinearAccel")
+			val rawFile = createCSVFile("Accel")
+
+			fileWriter = FileWriter(linearFile)
+			fileWriterRaw = FileWriter(rawFile)
+
 			fileWriter?.append("Timestamp,X,Y,Z\n")
+			fileWriterRaw?.append("Timestamp,X,Y,Z\n")
+
 			isRecording = true
 			statusTextView.text = "Recording..."
 			startButton.isEnabled = false
 			stopButton.isEnabled = true
 		} catch (e: IOException) {
 			e.printStackTrace()
-			Toast.makeText(this, "Failed to create file", Toast.LENGTH_SHORT).show()
+			Toast.makeText(this, "Failed to create files", Toast.LENGTH_SHORT).show()
 		}
 	}
+
 
 	private fun stopRecording() {
 		if (isRecording) {
 			sensorManager?.unregisterListener(this)
 			try {
 				fileWriter?.close()
-				Toast.makeText(this, "Recording saved", Toast.LENGTH_SHORT).show()
+				fileWriterRaw?.close()
+				Toast.makeText(this, "Recordings saved", Toast.LENGTH_SHORT).show()
 			} catch (e: IOException) {
 				e.printStackTrace()
-				Toast.makeText(this, "Failed to save file", Toast.LENGTH_SHORT).show()
+				Toast.makeText(this, "Failed to save files", Toast.LENGTH_SHORT).show()
 			}
 			isRecording = false
 			statusTextView.text = "Recording stopped"
@@ -106,45 +122,45 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 		}
 	}
 
+
+
 	@Throws(IOException::class)
-	private fun createCSVFile(): File {
+	private fun createCSVFile(prefix: String): File {
 		val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-		val fileName = "AccelerometerData_$timestamp.csv"
-		val storageDir =
-			Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+		val fileName = "${prefix}Data_$timestamp.csv"
+		val storageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
 		if (!storageDir.exists()) {
 			storageDir.mkdirs()
 		}
-
 		val file = File(storageDir, fileName)
 		Log.d("MainActivity", "File saved at: ${file.absolutePath}")
-
 		return file
 	}
 
+
 	override fun onSensorChanged(event: SensorEvent) {
-		if (event.sensor.type == SENSOR_TYPE && isRecording) {
-			val currentTimestamp = System.currentTimeMillis()
+		if (!isRecording) return
 
-			val x = event.values[0]
-			val y = event.values[1]
-			val z = event.values[2]
+		val currentTimestamp = System.currentTimeMillis()
+		val x = event.values[0]
+		val y = event.values[1]
+		val z = event.values[2]
 
-
-			try {
-				fileWriter?.append(
-					String.format(
-						Locale.getDefault(),
-						"%d,%.3f,%.3f,%.3f\n",
-						currentTimestamp,
-						x,
-						y,
-						z
+		try {
+			when (event.sensor.type) {
+				Sensor.TYPE_LINEAR_ACCELERATION -> {
+					fileWriter?.append(
+						String.format(Locale.getDefault(), "%d,%.3f,%.3f,%.3f\n", currentTimestamp, x, y, z)
 					)
-				)
-			} catch (e: IOException) {
-				e.printStackTrace()
+				}
+				Sensor.TYPE_ACCELEROMETER -> {
+					fileWriterRaw?.append(
+						String.format(Locale.getDefault(), "%d,%.3f,%.3f,%.3f\n", currentTimestamp, x, y, z)
+					)
+				}
 			}
+		} catch (e: IOException) {
+			e.printStackTrace()
 		}
 	}
 
