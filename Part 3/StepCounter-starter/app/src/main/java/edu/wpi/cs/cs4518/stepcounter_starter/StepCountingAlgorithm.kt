@@ -1,7 +1,7 @@
 package edu.wpi.cs.cs4518.stepcounter_starter
 
 import android.util.Log
-import kotlin.random.Random
+import kotlin.math.sqrt
 
 object StepCounterAlgorithm {
 	private const val TAG = "StepCounterAlgorithm"
@@ -11,9 +11,16 @@ object StepCounterAlgorithm {
 	// Also you should check the documentation of the jdsp as mentioned in the project description
 	// currently it just returns some random number, which is useful to testing the overall workflow
 	fun detectSteps(sensorData: List<FloatArray>): Int {
-		val randomSteps = Random.nextInt(1, 10) // Generate a random step count between 1 and 10
-		Log.d(TAG, "Step detection completed. Random steps detected: $randomSteps")
-		return randomSteps
-	}
+		val magnitudes = sensorData.map { (x, y, z) -> sqrt(x * x + y * y + z * z) }
 
+		var steps = 0
+		for (i in 1 until magnitudes.size - 1) {
+			if (magnitudes[i] > 1.2 && magnitudes[i] > magnitudes[i - 1] && magnitudes[i] > magnitudes[i + 1]) {
+				steps++
+			}
+		}
+
+		Log.d(TAG, "Detected $steps steps")
+		return steps
+	}
 }

@@ -1,8 +1,8 @@
 /**
  * Welcome to this shiny step counter app -_-
  */
-package edu.wpi.cs.cs4518.stepcounter_starter
 
+package edu.wpi.cs.cs4518.stepcounter_starter
 
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -10,10 +10,15 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
 import android.util.Log
+//import android.widget.Button
+//import android.widget.TextView
+//import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import edu.wpi.cs.cs4518.stepcounter_starter.databinding.ActivityMainBinding
+//import java.io.FileWriter
+//import java.io.IOException
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
 
@@ -22,9 +27,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
 	private lateinit var sensorManager: SensorManager
 	private var linearAccelerometer: Sensor? = null
-
-	var isSensorActive = false
-
+	private var isSensorActive = false
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
@@ -34,34 +37,31 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 		sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
 		linearAccelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
 
-		// Observe step count LiveData
 		viewModel.stepCount.observe(this, Observer { count ->
 			binding.textViewCounter.text = count.toString()
 		})
 
-		// Start tracking sensor data
 		binding.buttonStart.setOnClickListener {
 			if (!isSensorActive) {
-				Log.d(TAG, "Start button clicked")
 				linearAccelerometer?.let {
 					sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)
 					isSensorActive = true
 					Log.d(TAG, "Sensor registered")
 				} ?: Log.e(TAG, "Linear Accelerometer not available")
-			} else {
-				Log.d(TAG, "Sensor already active, ignoring start request.")
 			}
 		}
 
-
-		// Stop tracking sensor data
 		binding.buttonStop.setOnClickListener {
-			if (isSensorActive){
-				Log.d(TAG, "Stop button clicked")
+			if (isSensorActive) {
 				sensorManager.unregisterListener(this)
 				isSensorActive = false
 				Log.d(TAG, "Sensor unregistered")
 			}
+		}
+
+		binding.buttonReset.setOnClickListener {
+			viewModel.resetSteps()
+			Log.d(TAG, "Steps reset")
 		}
 	}
 
@@ -71,12 +71,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 		}
 	}
 
-	override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-		// Not needed for now
-	}
+	override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
 	companion object {
 		private const val TAG = "MainActivity"
 	}
-
 }
